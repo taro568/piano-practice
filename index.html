@@ -145,6 +145,7 @@ textarea { resize: vertical; min-height: 70px; }
   <div class="header-btns">
     <button class="icon-btn" onclick="openQR()">QR</button>
     <button class="icon-btn" onclick="window.print()">PDF</button>
+    <button class="icon-btn" onclick="openBackup()">💾</button>
   </div>
 </header>
 
@@ -268,6 +269,22 @@ textarea { resize: vertical; min-height: 70px; }
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeDeleteModal()">キャンセル</button>
       <button class="btn-danger" onclick="confirmDelete()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- バックアップモーダル -->
+<div class="modal-overlay" id="backup-modal">
+  <div class="modal">
+    <h3>💾 データのバックアップ</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">アプリを削除する前に必ずバックアップを取ってください。</p>
+    <button class="btn-primary" onclick="exportData()" style="margin-bottom:10px">📤 書き出す（バックアップ）</button>
+    <div style="border-top:1px solid var(--border);margin:12px 0"></div>
+    <p style="font-size:13px;font-weight:600;margin-bottom:8px">📥 読み込む（復元）</p>
+    <input type="file" id="import-file" accept=".json" style="font-size:13px;width:100%;margin-bottom:10px">
+    <button class="btn-primary" onclick="importData()">復元する</button>
+    <div class="modal-btns" style="margin-top:12px">
+      <button class="btn-cancel" onclick="document.getElementById('backup-modal').classList.remove('open')">閉じる</button>
     </div>
   </div>
 </div>
@@ -553,6 +570,41 @@ function renderBarChart(el, data, labelWidth) {
       <div class="bar-val">${d.mins>=60?Math.round(d.mins/6)/10+'h':d.mins>0?d.mins+'分':''}</div>
     </div>
   `).join('');
+}
+
+// --- バックアップ ---
+function openBackup() {
+  document.getElementById('backup-modal').classList.add('open');
+}
+function exportData() {
+  const records = loadRecords();
+  const json = JSON.stringify(records, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `piano-backup-${date}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+function importData() {
+  const file = document.getElementById('import-file').files[0];
+  if (!file) { alert('JSONファイルを選択してください'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error();
+      const existing = loadRecords();
+      const existingIds = new Set(existing.map(r => r.id));
+      const merged = [...existing, ...data.filter(r => !existingIds.has(r.id))];
+      merged.sort((a,b) => a.date.localeCompare(b.date));
+      saveRecords(merged);
+      document.getElementById('backup-modal').classList.remove('open');
+      alert(`${data.length}件のデータを復元しました！`);
+      renderList(); renderStats();
+    } catch { alert('ファイルの形式が正しくありません'); }
+  };
+  reader.readAsText(file);
 }
 
 // --- QR ---
