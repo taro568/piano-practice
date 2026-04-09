@@ -394,21 +394,44 @@ function renderList() {
     return;
   }
   const moodEmoji = { great:'😄', good:'🙂', normal:'😐', tired:'😫', fire:'🔥' };
-  container.innerHTML = records.map(r => `
-    <div class="record-card">
-      <div class="record-header">
-        <span class="record-date">${r.date}${r.mood?` ${moodEmoji[r.mood]||''}`:''}</span>
-        <span class="record-total">${r.total}分</span>
+
+  // 日付でグループ化
+  const groups = {};
+  records.forEach(r => {
+    if (!groups[r.date]) groups[r.date] = [];
+    groups[r.date].push(r);
+  });
+  const dates = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+
+  container.innerHTML = dates.map(date => {
+    const dayRecords = groups[date];
+    const dayTotal = dayRecords.reduce((s,r) => s+(r.total||0), 0);
+    const moods = [...new Set(dayRecords.map(r=>r.mood).filter(Boolean))];
+
+    const itemsHTML = dayRecords.map((r, idx) => {
+      const section = r.items.map(i =>
+        `<div class="record-item"><span class="record-item-time">${i.dur}分</span><span>${esc(i.text)}</span></div>`
+      ).join('');
+      const noteHTML = r.note ? `<div class="record-note">${esc(r.note)}</div>` : '';
+      const divider = idx > 0 ? '<div style="border-top:1px dashed var(--border);margin:8px 0"></div>' : '';
+      return divider + section + noteHTML;
+    }).join('');
+
+    const deleteButtons = dayRecords.map(r =>
+      `<button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除${dayRecords.length>1?' #'+(dayRecords.indexOf(r)+1):''}</button>`
+    ).join('');
+
+    return `
+      <div class="record-card">
+        <div class="record-header">
+          <span class="record-date">${date}${moods.length?` ${moods.map(m=>moodEmoji[m]||'').join('')}`:''}</span>
+          <span class="record-total">${dayTotal}分</span>
+        </div>
+        <div class="record-items">${itemsHTML}</div>
+        <div class="record-actions">${deleteButtons}</div>
       </div>
-      <div class="record-items">
-        ${r.items.map(i=>`<div class="record-item"><span class="record-item-time">${i.dur}分</span><span>${esc(i.text)}</span></div>`).join('')}
-      </div>
-      ${r.note ? `<div class="record-note">${esc(r.note)}</div>` : ''}
-      <div class="record-actions">
-        <button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除</button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function openDeleteModal(id) { pendingDeleteId = id; document.getElementById('delete-modal').classList.add('open'); }
@@ -431,7 +454,7 @@ let selectedYearMonthly = null;
 function renderStats() {
   const records = loadRecords();
   const totalMin = records.reduce((s,r) => s+(r.total||0), 0);
-  const totalDays = records.length;
+  const totalDays = new Set(records.map(r=>r.date)).size;
   const avgMin = totalDays > 0 ? Math.round(totalMin/totalDays) : 0;
   document.getElementById('stat-summary').innerHTML = `
     <div class="stat-box"><div class="num">${totalDays}</div><div class="lbl">練習日数</div></div>
