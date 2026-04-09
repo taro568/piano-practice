@@ -1,4 +1,4 @@
-const CACHE = 'piano-practice-v1';
+const CACHE = 'piano-practice-v2';
 const FILES = ['./index.html', './manifest.json', './icon.svg', './qrcode.min.js'];
 
 self.addEventListener('install', e => {
