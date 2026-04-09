@@ -126,7 +126,7 @@ textarea { resize: vertical; min-height: 70px; }
 .btn-cancel { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
 .btn-danger { background: #ef4444; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
 .btn-secondary { background: var(--primary-pale); color: var(--primary); border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
-#qr-canvas { margin: 0 auto; display: block; }
+#qr-container img, #qr-container canvas { margin: 0 auto; display: block; }
 .ip-row { display: flex; gap: 8px; margin-top: 10px; }
 .ip-row input { flex: 1; }
 .ip-row button { white-space: nowrap; padding: 10px 12px; }
@@ -293,7 +293,7 @@ textarea { resize: vertical; min-height: 70px; }
 <div class="modal-overlay" id="qr-modal">
   <div class="modal" style="text-align:center">
     <h3>スマホでインストール</h3>
-    <canvas id="qr-canvas"></canvas>
+    <div id="qr-container" style="display:flex;justify-content:center;margin:8px 0"></div>
     <p style="font-size:12px;color:var(--muted);margin-top:8px;" id="qr-url-label"></p>
     <div id="qr-localhost-warning" style="display:none">
       <p style="font-size:12px;color:#b45309;margin-top:8px;">ローカルサーバーのIPアドレスを入力してください：</p>
@@ -616,11 +616,19 @@ function openQR() {
   generateQR(url);
 }
 function generateQR(url) {
-  const canvas = document.getElementById('qr-canvas');
-  canvas.width = 200; canvas.height = 200;
   document.getElementById('qr-url-label').textContent = url;
-  if (typeof QRCode !== 'undefined')
-    QRCode.toCanvas(canvas, url, { width:200, margin:2, color:{dark:'#000000',light:'#ffffff'} });
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(container, {
+      text: url,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
 }
 function updateQRWithIP() {
   const ip = document.getElementById('ip-input').value.trim();
