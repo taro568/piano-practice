@@ -465,13 +465,11 @@ function renderList() {
       ).join('');
       const noteHTML = r.note ? `<div class="record-note">${esc(r.note)}</div>` : '';
       const divider = idx > 0 ? '<div style="border-top:1px dashed var(--border);margin:8px 0"></div>' : '';
-      return divider + section + noteHTML;
-    }).join('');
-
-    const actionButtons = dayRecords.map(r => {
-      const num = dayRecords.length > 1 ? ' #'+(dayRecords.indexOf(r)+1) : '';
-      return `<button class="btn-sm" onclick="openEditModal(${r.id})">編集${num}</button>`
-           + `<button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除${num}</button>`;
+      const btns = `<div class="record-actions" style="margin-top:6px">
+        <button class="btn-sm" onclick="openEditModal(${r.id})">編集</button>
+        <button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除</button>
+      </div>`;
+      return divider + section + noteHTML + btns;
     }).join('');
 
     return `
@@ -481,7 +479,6 @@ function renderList() {
           <span class="record-total">${dayTotal}分</span>
         </div>
         <div class="record-items">${itemsHTML}</div>
-        <div class="record-actions">${actionButtons}</div>
       </div>
     `;
   }).join('');
