@@ -1,0 +1,19 @@
+{
+  "name": "ピアノ練習ログ",
+  "short_name": "ピアノ",
+  "description": "ピアノの練習時間・内容を記録するアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#111827",
+  "background_color": "#111827",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

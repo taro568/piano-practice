@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ピアノ練習ログ</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ピアノ">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <script src="./qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #111827;
+      --primary-light: #374151;
+      --primary-pale: #f3f4f6;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --danger: #ef4444;
+      --gold: #f59e0b;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== HEADER ===== */
+    header {
+      background: #111827;
+      color: white;
+      padding: 16px 20px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 20px; font-weight: 800; letter-spacing: 0.02em; }
+    header p  { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    .qr-btn {
+      background: rgba(255,255,255,0.18);
+      border: none; color: white;
+      border-radius: 8px; padding: 6px 10px;
+      font-size: 18px; cursor: pointer; line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== TABS ===== */
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 68px; z-index: 99;
+    }
+
+    .tab {
+      flex: 1; padding: 14px; text-align: center;
+      font-size: 14px; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 3px solid transparent;
+      transition: all 0.2s; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ===== CONTENT ===== */
+    .content {
+      flex: 1; padding: 16px;
+      max-width: 680px; width: 100%; margin: 0 auto;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ===== CARDS ===== */
+    .form-card {
+      background: var(--card);
+      border-radius: 16px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      margin-bottom: 16px;
+    }
+
+    .form-card h2 {
+      font-size: 15px; font-weight: 700;
+      margin-bottom: 16px; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: var(--muted); margin-bottom: 6px;
+    }
+
+    input[type="text"], input[type="date"], input[type="number"], textarea, select {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 16px; font-family: inherit; color: var(--text);
+      background: #fafafa; outline: none;
+      transition: border-color 0.2s; -webkit-appearance: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary); background: white;
+    }
+
+    textarea { resize: none; min-height: 80px; line-height: 1.6; }
+
+    /* ===== TIMER ===== */
+    .timer-block {
+      background: #111827;
+      border-radius: 16px; padding: 20px;
+      text-align: center; margin-bottom: 14px;
+      color: white;
+    }
+
+    .timer-display {
+      font-size: 56px; font-weight: 800;
+      letter-spacing: 0.04em; line-height: 1;
+      margin-bottom: 6px; font-variant-numeric: tabular-nums;
+    }
+
+    .timer-display.running { color: #d1fae5; }
+
+    .timer-label { font-size: 12px; opacity: 0.6; margin-bottom: 18px; }
+
+    .timer-btns { display: flex; gap: 10px; justify-content: center; }
+
+    .btn-timer {
+      padding: 12px 24px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: opacity 0.15s;
+    }
+
+    .btn-timer:active { opacity: 0.75; }
+    .btn-start { background: white; color: #111827; }
+    .btn-pause { background: rgba(255,255,255,0.15); color: white; border: 1.5px solid rgba(255,255,255,0.3); }
+    .btn-reset { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+
+    .duration-input-wrap {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 14px; justify-content: center;
+    }
+
+    .duration-input-wrap input {
+      width: 90px; text-align: center; font-weight: 700;
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25); color: white;
+    }
+
+    .duration-input-wrap input::placeholder { color: rgba(255,255,255,0.4); }
+    .duration-input-wrap input:focus { border-color: white; background: rgba(255,255,255,0.2); outline: none; }
+    .duration-input-wrap span { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); }
+
+    /* ===== PRACTICE ITEMS ===== */
+    .items-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+
+    .item-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      background: #faf5ff; border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 10px 12px;
+      transition: border-color 0.2s;
+    }
+
+    .item-row:focus-within { border-color: var(--primary); background: white; }
+
+    .item-time {
+      width: 80px; flex-shrink: 0;
+      padding: 6px 8px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 15px; font-family: inherit;
+      color: var(--primary); font-weight: 700;
+      background: white; outline: none; text-align: center;
+      -webkit-appearance: none;
+    }
+
+    .item-time:focus { border-color: var(--primary); }
+
+    .item-text {
+      flex: 1; border: none; outline: none;
+      font-size: 16px; font-family: inherit; color: var(--text);
+      background: transparent; resize: none;
+      line-height: 1.6; min-height: 28px; padding: 2px 0; overflow: hidden;
+    }
+
+    .btn-remove-item {
+      flex-shrink: 0; width: 28px; height: 28px;
+      border: none; border-radius: 50%;
+      background: #fee2e2; color: var(--danger);
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent; margin-top: 2px;
+    }
+
+    .btn-add-item {
+      width: 100%; padding: 11px;
+      background: var(--primary-pale); color: var(--primary);
+      border: 1.5px dashed var(--primary-light);
+      border-radius: 10px; font-size: 15px; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== MOOD ===== */
+    .mood-selector { display: flex; gap: 8px; }
+
+    .mood-btn {
+      flex: 1; padding: 10px; border: 2px solid var(--border);
+      border-radius: 10px; text-align: center; font-size: 20px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mood-btn.selected { border-color: var(--primary); background: var(--primary-pale); }
+
+    /* ===== TAGS ===== */
+    .tags-input {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 10px 12px; border: 1.5px solid var(--border);
+      border-radius: 10px; background: #fafafa;
+      min-height: 48px; cursor: text;
+    }
+
+    .tags-input.focused { border-color: var(--primary); background: white; }
+
+    .tag {
+      background: var(--primary); color: white;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 13px; display: flex; align-items: center; gap: 6px;
+    }
+
+    .tag-remove { cursor: pointer; font-size: 16px; line-height: 1; opacity: 0.8; }
+
+    .tag-input-field {
+      border: none; outline: none; font-size: 16px;
+      background: transparent; flex: 1; min-width: 80px;
+      padding: 4px 0; color: var(--text);
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn-primary {
+      width: 100%; padding: 15px;
+      background: var(--primary); color: white;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; margin-top: 6px;
+      transition: background 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary:active { background: var(--primary-light); }
+
+    /* ===== SEARCH / FILTER ===== */
+    .search-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+
+    .search-input {
+      flex: 1; padding: 12px 16px;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      font-size: 16px; background: white; outline: none;
+    }
+
+    .search-input:focus { border-color: var(--primary); }
+
+    .btn-pdf {
+      flex-shrink: 0; padding: 12px 16px;
+      background: #dc2626; color: white;
+      border: none; border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+
+    .filter-row {
+      display: flex; gap: 8px; margin-bottom: 14px;
+      overflow-x: auto; padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .filter-chip {
+      flex-shrink: 0; padding: 7px 14px;
+      border-radius: 20px; border: 1.5px solid var(--border);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      background: white; color: var(--muted);
+      -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+    }
+
+    .filter-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+    /* ===== SESSION CARDS ===== */
+    .session-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .session-card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      cursor: pointer; transition: transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      border-left: 4px solid var(--primary);
+    }
+
+    .session-card:active { transform: scale(0.98); }
+
+    .session-card-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 8px;
+    }
+
+    .session-date { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .session-mood { font-size: 18px; }
+
+    .session-duration-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--primary-pale); color: var(--primary);
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 14px; font-weight: 800; margin-bottom: 8px;
+    }
+
+    .session-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+
+    .session-preview {
+      font-size: 13px; color: var(--muted); line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .session-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+    .session-tag {
+      background: var(--primary-pale); color: var(--primary);
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+
+    .session-tag.highlight { background: #fef9c3; color: #854d0e; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: white; border-radius: 24px 24px 0 0;
+      width: 100%; max-height: 90dvh; overflow-y: auto;
+      padding: 24px 20px; animation: slideUp 0.25s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+
+    .modal-handle {
+      width: 40px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 0 auto 20px;
+    }
+
+    .modal-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 8px;
+    }
+
+    .modal-date { font-size: 13px; color: var(--primary); font-weight: 700; }
+
+    .modal-actions { display: flex; gap: 10px; }
+
+    .btn-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-edit { background: var(--primary-pale); }
+    .btn-delete { background: #fee2e2; }
+
+    .modal-duration {
+      font-size: 32px; font-weight: 800; color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    .modal-title { font-size: 19px; font-weight: 800; margin-bottom: 14px; }
+
+    .modal-section { margin-bottom: 16px; }
+
+    .modal-section-label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+    }
+
+    /* ===== TIMELINE ===== */
+    .timeline { display: flex; flex-direction: column; }
+
+    .timeline-item {
+      display: flex; gap: 12px; padding-bottom: 14px; position: relative;
+    }
+
+    .timeline-item:not(:last-child)::before {
+      content: ''; position: absolute; left: 34px; top: 26px; bottom: 0;
+      width: 2px; background: var(--border);
+    }
+
+    .timeline-time {
+      flex-shrink: 0; width: 68px; font-size: 12px; font-weight: 700;
+      color: var(--primary); background: var(--primary-pale);
+      border-radius: 20px; padding: 4px 8px; text-align: center; height: fit-content;
+    }
+
+    .timeline-text { flex: 1; font-size: 14px; line-height: 1.6; padding-top: 3px; white-space: pre-wrap; }
+
+    .modal-note { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
+
+    .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* ===== STATS ===== */
+    .stats-hero {
+      background: #111827;
+      border-radius: 20px; padding: 24px 20px; margin-bottom: 16px;
+      color: white; text-align: center;
+    }
+
+    .stats-hero-value {
+      font-size: 52px; font-weight: 800; line-height: 1; margin-bottom: 4px;
+    }
+
+    .stats-hero-label { font-size: 14px; opacity: 0.8; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+    .stat-card {
+      background: white; border-radius: 14px; padding: 16px;
+      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .stat-value { font-size: 28px; font-weight: 800; color: var(--primary); }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; }
+
+    /* ===== WEEKLY CHART ===== */
+    .chart-wrap {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 6px; height: 120px; padding: 0 4px;
+    }
+
+    .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+    .chart-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+
+    .chart-bar {
+      width: 100%; border-radius: 6px 6px 0 0;
+      background: var(--primary); min-height: 4px;
+      transition: height 0.4s ease;
+    }
+
+    .chart-bar.today { background: #374151; }
+
+    .chart-day { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .chart-min { font-size: 10px; color: var(--primary); font-weight: 700; }
+
+    /* ===== MONTHLY / YEARLY CHART ===== */
+    .hbar-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .hbar-label {
+      flex-shrink: 0; width: 64px; font-size: 12px;
+      font-weight: 700; color: var(--text); text-align: right;
+    }
+
+    .hbar-label.current { color: var(--primary); }
+
+    .hbar-track {
+      flex: 1; background: var(--primary-pale);
+      border-radius: 6px; height: 18px; overflow: hidden;
+    }
+
+    .hbar-fill {
+      height: 100%; border-radius: 6px;
+      background: var(--primary); transition: width 0.4s ease;
+    }
+
+    .hbar-fill.current { background: #374151; }
+
+    .hbar-value {
+      flex-shrink: 0; width: 60px; font-size: 12px;
+      font-weight: 700; color: var(--muted); text-align: left;
+    }
+
+    /* ===== YEAR SELECTOR ===== */
+    .period-selector {
+      display: flex; gap: 8px; margin-bottom: 14px;
+      overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;
+    }
+
+    .period-selector::-webkit-scrollbar { display: none; }
+
+    .period-chip {
+      flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+      border: 1.5px solid var(--border); font-size: 13px;
+      font-weight: 600; cursor: pointer; background: white;
+      color: var(--muted); -webkit-tap-highlight-color: transparent;
+      transition: all 0.15s;
+    }
+
+    .period-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+    /* ===== EMPTY ===== */
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-icon { font-size: 56px; margin-bottom: 16px; }
+    .empty h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .empty p  { font-size: 14px; line-height: 1.6; }
+
+    /* ===== HIGHLIGHT ===== */
+    mark { background: #fef08a; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e1b4b; color: white;
+      padding: 12px 24px; border-radius: 24px;
+      font-size: 14px; font-weight: 600; z-index: 999;
+      transition: transform 0.3s ease; pointer-events: none;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ===== QR MODAL ===== */
+    .qr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 300;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+
+    .qr-overlay.open { display: flex; }
+
+    .qr-card {
+      background: white; border-radius: 24px;
+      padding: 28px 24px 24px; width: 100%; max-width: 340px;
+      text-align: center; animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .qr-card h2 { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+    .qr-card p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+
+    #qr-canvas { margin: 0 auto 16px; display: block; }
+
+    .qr-url {
+      background: var(--bg); border-radius: 10px; padding: 10px 14px;
+      font-size: 13px; color: var(--primary); font-weight: 600;
+      word-break: break-all; margin-bottom: 20px;
+    }
+
+    .qr-steps {
+      text-align: left; font-size: 13px; color: var(--muted);
+      line-height: 1.8; margin-bottom: 20px;
+      background: #f8fafc; border-radius: 12px; padding: 12px 16px;
+    }
+
+    .qr-steps li { margin-left: 16px; }
+
+    .btn-close-qr {
+      width: 100%; padding: 13px;
+      background: var(--primary); color: white;
+      border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== PRINT ===== */
+    #print-area { display: none; }
+
+    @media print {
+      body > * { display: none !important; }
+      #print-area {
+        display: block !important;
+        font-family: -apple-system, 'Hiragino Sans', sans-serif;
+        color: #1e1b4b; font-size: 11pt; line-height: 1.6;
+      }
+      .p-header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 20px; }
+      .p-header h1 { font-size: 18pt; color: #111827; margin: 0 0 4px; }
+      .p-header p  { font-size: 10pt; color: #6b7280; margin: 0; }
+      .p-session { border: 1px solid #e5e7eb; border-left: 4px solid #111827; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; page-break-inside: avoid; }
+      .p-session-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+      .p-date  { font-size: 10pt; color: #111827; font-weight: 700; }
+      .p-dur   { font-size: 12pt; font-weight: 800; color: #111827; background: #f3f4f6; padding: 2px 10px; border-radius: 12px; }
+      .p-title { font-size: 13pt; font-weight: 800; margin-bottom: 8px; }
+      .p-label { font-size: 8pt; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 4px; }
+      .p-item  { display: flex; gap: 8px; margin-bottom: 4px; }
+      .p-time  { font-size: 10pt; font-weight: 700; color: #111827; background: #f3f4f6; padding: 1px 8px; border-radius: 10px; flex-shrink: 0; }
+      .p-item-text { font-size: 11pt; }
+      .p-note  { font-size: 11pt; color: #374151; white-space: pre-wrap; }
+      .p-tags  { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+      .p-tag   { background: #f3f4f6; color: #111827; padding: 1px 8px; border-radius: 10px; font-size: 9pt; font-weight: 600; }
+      .p-footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 9pt; color: #9ca3af; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🎹 ピアノ練習ログ</h1>
+    <p id="today-label"></p>
+  </div>
+  <button class="qr-btn" id="btn-qr" title="スマホにインストール">📱</button>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="record">✏️ 記録</div>
+  <div class="tab" data-tab="list">📋 一覧</div>
+  <div class="tab" data-tab="stats">📊 統計</div>
+</div>
+
+<div class="content">
+
+  <!-- ===== 記録タブ ===== -->
+  <div class="page active" id="page-record">
+
+    <!-- タイマー -->
+    <div class="timer-block">
+      <div class="timer-display" id="timer-display">00:00</div>
+      <div class="timer-label" id="timer-label">タップして練習を開始</div>
+      <div class="timer-btns">
+        <button class="btn-timer btn-start" id="btn-timer-toggle">▶ スタート</button>
+        <button class="btn-timer btn-reset" id="btn-timer-reset">↺ リセット</button>
+      </div>
+      <div class="duration-input-wrap">
+        <input type="number" id="input-duration" placeholder="0" min="0" max="600">
+        <span>分</span>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="input-date">
+      </div>
+
+      <div class="field">
+        <label>練習内容（時間ごとに記録）</label>
+        <div class="items-list" id="items-list"></div>
+        <button type="button" class="btn-add-item" id="btn-add-item">＋ 曲・練習を追加</button>
+      </div>
+
+      <div class="field">
+        <label>メモ・気づき</label>
+        <textarea id="input-note" placeholder="難しかった箇所、改善点、明日の目標など…" rows="3"></textarea>
+      </div>
+
+      <div class="field">
+        <label>タグ（Enterで追加）</label>
+        <div class="tags-input" id="tags-container">
+          <input class="tag-input-field" id="tag-input" placeholder="例: バッハ、スケール…" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>今日の練習の感触</label>
+        <div class="mood-selector" id="mood-selector">
+          <div class="mood-btn" data-mood="🎵">🎵</div>
+          <div class="mood-btn" data-mood="🔥">🔥</div>
+          <div class="mood-btn" data-mood="😤">😤</div>
+          <div class="mood-btn" data-mood="😴">😴</div>
+          <div class="mood-btn" data-mood="🌟">🌟</div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="btn-save">💾 練習を記録</button>
+    </div>
+  </div>
+
+  <!-- ===== 一覧タブ ===== -->
+  <div class="page" id="page-list">
+    <div class="search-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="🔍 曲名・メモで検索…" autocomplete="off">
+      <button class="btn-pdf" id="btn-pdf">📄 PDF</button>
+    </div>
+    <div class="filter-row" id="filter-row">
+      <div class="filter-chip active" data-filter="all">すべて</div>
+      <div class="filter-chip" data-filter="week">今週</div>
+      <div class="filter-chip" data-filter="month">今月</div>
+    </div>
+    <div class="session-list" id="session-list"></div>
+  </div>
+
+  <!-- ===== 統計タブ ===== -->
+  <div class="page" id="page-stats">
+    <div class="stats-hero">
+      <div class="stats-hero-value" id="stat-total-time">0分</div>
+      <div class="stats-hero-label">累計練習時間</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-streak">0</div>
+        <div class="stat-label">連続日数 🔥</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-sessions">0</div>
+        <div class="stat-label">総セッション数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-month-time">0分</div>
+        <div class="stat-label">今月の練習時間</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-avg">0分</div>
+        <div class="stat-label">平均練習時間</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2>📅 過去7日間の練習時間</h2>
+      <div class="chart-wrap" id="weekly-chart"></div>
+    </div>
+
+    <div class="form-card">
+      <h2>📆 月別練習時間</h2>
+      <div class="period-selector" id="month-year-selector"></div>
+      <div id="monthly-chart"></div>
+    </div>
+
+    <div class="form-card">
+      <h2>📈 年別練習時間</h2>
+      <div id="yearly-chart" style="margin-top:4px;"></div>
+    </div>
+
+    <div class="form-card">
+      <h2>🎵 気分の分布</h2>
+      <div id="mood-distribution" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="form-card">
+      <h2>🎼 よく練習する曲・タグ</h2>
+      <div id="top-tags" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== 詳細モーダル ===== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-date" id="modal-date"></span>
+      <div class="modal-actions">
+        <button class="btn-icon btn-edit"   id="modal-edit"   title="編集">✏️</button>
+        <button class="btn-icon btn-delete" id="modal-delete" title="削除">🗑️</button>
+      </div>
+    </div>
+    <div class="modal-duration" id="modal-duration"></div>
+    <div class="modal-title"    id="modal-title"></div>
+
+    <div class="modal-section">
+      <div class="modal-section-label">練習内容</div>
+      <div class="timeline" id="modal-items"></div>
+    </div>
+
+    <div class="modal-section" id="modal-note-section">
+      <div class="modal-section-label">メモ・気づき</div>
+      <div class="modal-note" id="modal-note"></div>
+    </div>
+
+    <div class="modal-section" id="modal-tags-section">
+      <div class="modal-section-label">タグ</div>
+      <div class="modal-tags" id="modal-tags"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== QRコードモーダル ===== -->
+<div class="qr-overlay" id="qr-overlay">
+  <div class="qr-card">
+    <h2>📱 スマホにインストール</h2>
+
+    <!-- localhost時の警告 -->
+    <div id="qr-ip-section">
+      <p id="qr-desc" style="margin-bottom:10px;"></p>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input type="text" id="qr-ip-input" placeholder="192.168.x.x"
+          style="flex:1;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:16px;outline:none;">
+        <button id="qr-gen-btn"
+          style="padding:10px 16px;background:#111827;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          生成
+        </button>
+      </div>
+    </div>
+
+    <div id="qr-canvas"></div>
+    <div class="qr-url" id="qr-url" style="margin-top:12px;"></div>
+
+    <ol class="qr-steps" style="margin-top:14px;">
+      <li>カメラでQRコードを読み取る</li>
+      <li>Safariでページを開く</li>
+      <li>共有ボタン（□↑）をタップ</li>
+      <li>「ホーム画面に追加」→「追加」</li>
+    </ol>
+    <button class="btn-close-qr" id="btn-close-qr">閉じる</button>
+  </div>
+</div>
+
+<!-- 印刷用エリア -->
+<div id="print-area"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================
+// DATA
+// =====================
+const STORAGE_KEY = 'piano_sessions_v1';
+
+function loadSessions()         { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
+function saveSessions(s)        { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function getSessions()          { return loadSessions(); }
+
+function addSession(s) {
+  const all = loadSessions();
+  s.id = Date.now().toString();
+  s.createdAt = new Date().toISOString();
+  all.unshift(s);
+  saveSessions(all);
+  return s;
+}
+
+function updateSession(id, data) {
+  const all = loadSessions();
+  const i = all.findIndex(s => s.id === id);
+  if (i !== -1) { all[i] = { ...all[i], ...data }; saveSessions(all); }
+}
+
+function deleteSession(id) { saveSessions(loadSessions().filter(s => s.id !== id)); }
+
+// =====================
+// UTILS
+// =====================
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function formatDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  const days = ['日','月','火','水','木','金','土'];
+  return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日（${days[dt.getDay()]}）`;
+}
+
+function relativeLabel(d) {
+  const today = todayStr();
+  if (d === today) return '今日';
+  const yest = new Date(); yest.setDate(yest.getDate()-1);
+  if (d === yest.toISOString().slice(0,10)) return '昨日';
+  const diff = Math.floor((new Date(today) - new Date(d+'T00:00:00')) / 86400000);
+  if (diff < 7) return `${diff}日前`;
+  return '';
+}
+
+function formatDuration(min) {
+  if (!min || min <= 0) return '0分';
+  if (min < 60) return `${min}分`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m > 0 ? `${h}時間${m}分` : `${h}時間`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlight(text, q) {
+  if (!q) return escapeHtml(text);
+  const safe = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return escapeHtml(text).replace(new RegExp(safe,'gi'), m => `<mark>${m}</mark>`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+
+// =====================
+// TIMER
+// =====================
+let timerSec = 0, timerRunning = false, timerInterval = null;
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerSec / 60), s = timerSec % 60;
+  const el = document.getElementById('timer-display');
+  el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.classList.toggle('running', timerRunning);
+}
+
+document.getElementById('btn-timer-toggle').addEventListener('click', () => {
+  const btn = document.getElementById('btn-timer-toggle');
+  if (!timerRunning) {
+    timerRunning = true;
+    timerInterval = setInterval(() => { timerSec++; updateTimerDisplay(); }, 1000);
+    btn.textContent = '⏸ 一時停止';
+    btn.className = 'btn-timer btn-pause';
+    document.getElementById('timer-label').textContent = '練習中…';
+  } else {
+    timerRunning = false;
+    clearInterval(timerInterval);
+    btn.textContent = '▶ 再開';
+    btn.className = 'btn-timer btn-start';
+    document.getElementById('timer-label').textContent = '一時停止中';
+    const mins = Math.round(timerSec / 60);
+    if (mins > 0) document.getElementById('input-duration').value = mins;
+  }
+});
+
+document.getElementById('btn-timer-reset').addEventListener('click', () => {
+  timerRunning = false; clearInterval(timerInterval);
+  timerSec = 0; updateTimerDisplay();
+  document.getElementById('btn-timer-toggle').textContent = '▶ スタート';
+  document.getElementById('btn-timer-toggle').className = 'btn-timer btn-start';
+  document.getElementById('timer-label').textContent = 'タップして練習を開始';
+  document.getElementById('input-duration').value = '';
+});
+
+// =====================
+// PRACTICE ITEMS
+// =====================
+let currentItems = [];
+
+function addItemRow(time = '', text = '') {
+  currentItems.push({ time, text });
+  renderItems();
+  const rows = document.querySelectorAll('.item-text');
+  if (rows.length) rows[rows.length - 1].focus();
+}
+
+function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+
+function renderItems() {
+  const container = document.getElementById('items-list');
+  container.innerHTML = '';
+  currentItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="time" class="item-time" value="${item.time}" data-idx="${i}">
+      <textarea class="item-text" placeholder="曲名・練習内容…" data-idx="${i}" rows="1">${escapeHtml(item.text)}</textarea>
+      <button type="button" class="btn-remove-item" data-idx="${i}">×</button>
+    `;
+    container.appendChild(row);
+    const ta = row.querySelector('.item-text');
+    autoResize(ta);
+    ta.addEventListener('input', e => { currentItems[i].text = e.target.value; autoResize(e.target); });
+    row.querySelector('.item-time').addEventListener('change', e => { currentItems[i].time = e.target.value; });
+    row.querySelector('.btn-remove-item').addEventListener('click', () => { currentItems.splice(i,1); renderItems(); });
+  });
+}
+
+document.getElementById('btn-add-item').addEventListener('click', () => addItemRow());
+
+// =====================
+// TAGS
+// =====================
+let currentTags = [];
+
+function renderTags() {
+  const container = document.getElementById('tags-container');
+  const input = document.getElementById('tag-input');
+  container.innerHTML = '';
+  currentTags.forEach(tag => {
+    const el = document.createElement('div');
+    el.className = 'tag';
+    el.innerHTML = `${escapeHtml(tag)}<span class="tag-remove" data-tag="${escapeHtml(tag)}">×</span>`;
+    container.appendChild(el);
+  });
+  container.appendChild(input);
+  container.querySelectorAll('.tag-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      currentTags = currentTags.filter(t => t !== e.target.dataset.tag);
+      renderTags();
+    });
+  });
+}
+
+document.getElementById('tags-container').addEventListener('click', () => document.getElementById('tag-input').focus());
+
+document.getElementById('tag-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/,/g,'');
+    if (val && !currentTags.includes(val)) { currentTags.push(val); renderTags(); }
+    e.target.value = '';
+  } else if (e.key === 'Backspace' && !e.target.value && currentTags.length) {
+    currentTags.pop(); renderTags();
+  }
+});
+
+// =====================
+// MOOD
+// =====================
+let selectedMood = '';
+
+document.getElementById('mood-selector').addEventListener('click', e => {
+  const btn = e.target.closest('.mood-btn');
+  if (!btn) return;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedMood = btn.dataset.mood;
+});
+
+// =====================
+// FORM INIT / SAVE
+// =====================
+function initForm(session) {
+  timerRunning = false; clearInterval(timerInterval);
+  timerSec = 0; updateTimerDisplay();
+  document.getElementById('btn-timer-toggle').textContent = '▶ スタート';
+  document.getElementById('btn-timer-toggle').className = 'btn-timer btn-start';
+  document.getElementById('timer-label').textContent = 'タップして練習を開始';
+
+  document.getElementById('input-date').value     = session ? session.date : todayStr();
+  document.getElementById('input-duration').value = session && session.duration ? session.duration : '';
+  document.getElementById('input-note').value     = session ? (session.note || '') : '';
+
+  if (session && session.items && session.items.length) {
+    currentItems = session.items.map(it => ({ time: it.time || '', text: it.text || '' }));
+  } else {
+    currentItems = [{ time: '', text: '' }];
+  }
+  renderItems();
+
+  currentTags = session ? [...(session.tags || [])] : [];
+  renderTags();
+
+  selectedMood = session ? (session.mood || '') : '';
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('selected', b.dataset.mood === selectedMood));
+}
+
+let editingId = null;
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  // sync textarea values
+  document.querySelectorAll('.item-text').forEach((ta, i) => { currentItems[i].text = ta.value; });
+  document.querySelectorAll('.item-time').forEach((inp, i) => { currentItems[i].time = inp.value; });
+
+  const date     = document.getElementById('input-date').value;
+  const duration = parseInt(document.getElementById('input-duration').value) || 0;
+  const items    = currentItems.filter(it => it.text.trim());
+
+  if (!date)     { showToast('日付を入力してください'); return; }
+  if (!duration && !items.length) { showToast('練習時間または練習内容を入力してください'); return; }
+
+  const tagField = document.getElementById('tag-input');
+  if (tagField.value.trim()) { currentTags.push(tagField.value.trim()); tagField.value = ''; }
+
+  const firstItem = items.length ? items[0].text : '';
+  const session = {
+    date,
+    duration,
+    items,
+    note:  document.getElementById('input-note').value.trim(),
+    tags:  [...currentTags],
+    mood:  selectedMood,
+    title: firstItem.slice(0, 40) || `練習 ${formatDuration(duration)}`,
+  };
+
+  if (editingId) {
+    updateSession(editingId, session);
+    editingId = null;
+    showToast('練習記録を更新しました ✅');
+  } else {
+    addSession(session);
+    showToast('練習を記録しました ✅');
+  }
+
+  initForm(null);
+  renderList(); renderStats();
+  switchTab('list');
+  document.getElementById('btn-save').textContent = '💾 練習を記録';
+});
+
+// =====================
+// LIST / SEARCH
+// =====================
+let searchQuery = '';
+let activeFilter = 'all';
+
+function getFiltered() {
+  let all = getSessions();
+  if (activeFilter === 'week') {
+    const d = new Date(); d.setDate(d.getDate()-6);
+    const cut = d.toISOString().slice(0,10);
+    all = all.filter(s => s.date >= cut);
+  } else if (activeFilter === 'month') {
+    const ym = todayStr().slice(0,7);
+    all = all.filter(s => s.date.slice(0,7) === ym);
+  }
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    all = all.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      (s.items||[]).some(it => it.text.toLowerCase().includes(q)) ||
+      (s.note||'').toLowerCase().includes(q) ||
+      (s.tags||[]).some(t => t.toLowerCase().includes(q))
+    );
+  }
+  return all;
+}
+
+function renderList() {
+  const container = document.getElementById('session-list');
+  const sessions  = getFiltered();
+
+  if (!sessions.length) {
+    container.innerHTML = `<div class="empty">
+      <div class="empty-icon">${searchQuery ? '🔍' : '🎹'}</div>
+      <h3>${searchQuery ? '該当なし' : 'まだ記録がありません'}</h3>
+      <p>${searchQuery ? `"${escapeHtml(searchQuery)}" に一致する記録が見つかりませんでした` : '「記録」タブから最初の練習を記録しましょう'}</p>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = sessions.map(s => {
+    const rel   = relativeLabel(s.date);
+    const dateLabel = formatDate(s.date) + (rel ? ` · <strong>${rel}</strong>` : '');
+    const tagsHtml  = (s.tags||[]).map(t => {
+      const isMatch = searchQuery && t.toLowerCase().includes(searchQuery.toLowerCase());
+      return `<span class="session-tag ${isMatch?'highlight':''}">${highlight(t, searchQuery)}</span>`;
+    }).join('');
+    const preview = (s.items||[]).slice(0,2).map(it => (it.time ? `${it.time} ${it.text}` : it.text)).join(' / ');
+    return `<div class="session-card" data-id="${s.id}">
+      <div class="session-card-header">
+        <span class="session-date">${dateLabel}</span>
+        <span class="session-mood">${s.mood||''}</span>
+      </div>
+      <div class="session-duration-badge">🎹 ${formatDuration(s.duration)}</div>
+      <div class="session-title">${highlight(s.title, searchQuery)}</div>
+      ${preview ? `<div class="session-preview">${highlight(preview, searchQuery)}</div>` : ''}
+      ${tagsHtml ? `<div class="session-tags">${tagsHtml}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.session-card').forEach(card => {
+    card.addEventListener('click', () => openModal(card.dataset.id));
+  });
+}
+
+document.getElementById('search-input').addEventListener('input', e => { searchQuery = e.target.value.trim(); renderList(); });
+
+document.getElementById('filter-row').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  activeFilter = chip.dataset.filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c === chip));
+  renderList();
+});
+
+// =====================
+// MODAL
+// =====================
+let currentModalId = null;
+
+function openModal(id) {
+  const s = getSessions().find(s => s.id === id);
+  if (!s) return;
+  currentModalId = id;
+
+  const rel = relativeLabel(s.date);
+  document.getElementById('modal-date').innerHTML =
+    formatDate(s.date) + (rel ? ` · <strong>${rel}</strong>` : '');
+  document.getElementById('modal-duration').textContent = '🎹 ' + formatDuration(s.duration);
+  document.getElementById('modal-title').textContent = s.title;
+
+  const items = (s.items && s.items.length) ? s.items : [];
+  document.getElementById('modal-items').innerHTML = items.map(it => `
+    <div class="timeline-item">
+      ${it.time ? `<span class="timeline-time">${escapeHtml(it.time)}</span>` : ''}
+      <span class="timeline-text">${escapeHtml(it.text)}</span>
+    </div>`).join('');
+
+  const noteSection = document.getElementById('modal-note-section');
+  if (s.note) { document.getElementById('modal-note').textContent = s.note; noteSection.style.display = ''; }
+  else          { noteSection.style.display = 'none'; }
+
+  const tagsSection = document.getElementById('modal-tags-section');
+  if (s.tags && s.tags.length) {
+    document.getElementById('modal-tags').innerHTML =
+      s.tags.map(t => `<span class="session-tag">${escapeHtml(t)}</span>`).join('');
+    tagsSection.style.display = '';
+  } else { tagsSection.style.display = 'none'; }
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); currentModalId = null; }
+
+document.getElementById('modal-delete').addEventListener('click', () => {
+  if (!currentModalId) return;
+  if (!confirm('この記録を削除しますか？')) return;
+  deleteSession(currentModalId); closeModal();
+  renderList(); renderStats(); showToast('削除しました');
+});
+
+document.getElementById('modal-edit').addEventListener('click', () => {
+  if (!currentModalId) return;
+  const s = getSessions().find(s => s.id === currentModalId);
+  if (!s) return;
+  editingId = currentModalId;
+  initForm(s); closeModal();
+  switchTab('record');
+  document.getElementById('btn-save').textContent = '💾 練習記録を更新';
+});
+
+let touchStartY = 0;
+document.getElementById('modal').addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+document.getElementById('modal').addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientY - touchStartY > 80) closeModal();
+});
+
+// =====================
+// STATS
+// =====================
+function renderStats() {
+  const all   = getSessions();
+  const today = todayStr();
+  const ym    = today.slice(0,7);
+
+  // total time
+  const totalMin = all.reduce((a,s) => a + (s.duration||0), 0);
+  document.getElementById('stat-total-time').textContent = formatDuration(totalMin);
+  document.getElementById('stat-sessions').textContent   = all.length;
+
+  // month
+  const monthMin = all.filter(s => s.date.slice(0,7) === ym).reduce((a,s) => a+(s.duration||0), 0);
+  document.getElementById('stat-month-time').textContent = formatDuration(monthMin);
+
+  // avg
+  const avg = all.length ? Math.round(totalMin / all.length) : 0;
+  document.getElementById('stat-avg').textContent = formatDuration(avg);
+
+  // streak
+  const dates = new Set(all.map(s => s.date));
+  let streak = 0, check = today;
+  while (dates.has(check)) {
+    streak++;
+    const d = new Date(check+'T00:00:00'); d.setDate(d.getDate()-1);
+    check = d.toISOString().slice(0,10);
+  }
+  document.getElementById('stat-streak').textContent = streak;
+
+  // weekly chart
+  const chart = document.getElementById('weekly-chart');
+  const days = ['日','月','火','水','木','金','土'];
+  const chartData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const dateStr = d.toISOString().slice(0,10);
+    const mins = all.filter(s => s.date === dateStr).reduce((a,s) => a+(s.duration||0), 0);
+    chartData.push({ dateStr, day: days[d.getDay()], mins, isToday: dateStr === today });
+  }
+  const maxMin = Math.max(...chartData.map(d => d.mins), 1);
+  chart.innerHTML = chartData.map(d => `
+    <div class="chart-col">
+      <div class="chart-min">${d.mins > 0 ? (d.mins >= 60 ? Math.floor(d.mins/60)+'h' : d.mins+'m') : ''}</div>
+      <div class="chart-bar-wrap">
+        <div class="chart-bar${d.isToday?' today':''}" style="height:${Math.max(d.mins/maxMin*100,d.mins>0?6:2)}%"></div>
+      </div>
+      <div class="chart-day">${d.day}</div>
+    </div>`).join('');
+
+  // ===== 月別チャート =====
+  // 年セレクター
+  const allYears = [...new Set(all.map(s => s.date.slice(0,4)))].sort((a,b) => b-a);
+  if (!allYears.length) allYears.push(today.slice(0,4));
+  const selector = document.getElementById('month-year-selector');
+  const currentSelectedYear = selector.dataset.year || today.slice(0,4);
+  const activeYear = allYears.includes(currentSelectedYear) ? currentSelectedYear : allYears[0];
+  selector.dataset.year = activeYear;
+
+  selector.innerHTML = allYears.map(y =>
+    `<div class="period-chip${y === activeYear ? ' active' : ''}" data-year="${y}">${y}年</div>`
+  ).join('');
+
+  selector.querySelectorAll('.period-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      selector.dataset.year = chip.dataset.year;
+      renderStats();
+    });
+  });
+
+  // 選択年の月別集計
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const currentYm = today.slice(0,7);
+  const monthlyData = monthNames.map((name, i) => {
+    const ym = `${activeYear}-${String(i+1).padStart(2,'0')}`;
+    const mins = all.filter(s => s.date.slice(0,7) === ym).reduce((a,s) => a+(s.duration||0), 0);
+    return { name, ym, mins, isCurrent: ym === currentYm };
+  });
+  const maxMonthMin = Math.max(...monthlyData.map(d => d.mins), 1);
+  const monthlyDiv = document.getElementById('monthly-chart');
+  const hasMonthlyData = monthlyData.some(d => d.mins > 0);
+  monthlyDiv.innerHTML = hasMonthlyData
+    ? monthlyData.map(d => `
+      <div class="hbar-row">
+        <div class="hbar-label${d.isCurrent ? ' current' : ''}">${d.name}</div>
+        <div class="hbar-track">
+          <div class="hbar-fill${d.isCurrent ? ' current' : ''}" style="width:${d.mins > 0 ? Math.max(d.mins/maxMonthMin*100, 3) : 0}%"></div>
+        </div>
+        <div class="hbar-value">${d.mins > 0 ? formatDuration(d.mins) : ''}</div>
+      </div>`).join('')
+    : `<p style="color:var(--muted);font-size:14px;">${activeYear}年の記録はありません</p>`;
+
+  // ===== 年別チャート =====
+  const yearlyDiv = document.getElementById('yearly-chart');
+  const dataYears = [...new Set(all.map(s => s.date.slice(0,4)))].sort((a,b) => b-a);
+  if (!dataYears.length) {
+    yearlyDiv.innerHTML = '<p style="color:var(--muted);font-size:14px;">まだデータがありません</p>';
+  } else {
+    const currentYear = today.slice(0,4);
+    const yearlyData = dataYears.map(y => {
+      const mins = all.filter(s => s.date.slice(0,4) === y).reduce((a,s) => a+(s.duration||0), 0);
+      return { y, mins, isCurrent: y === currentYear };
+    });
+    const maxYearMin = Math.max(...yearlyData.map(d => d.mins), 1);
+    yearlyDiv.innerHTML = yearlyData.map(d => `
+      <div class="hbar-row">
+        <div class="hbar-label${d.isCurrent ? ' current' : ''}">${d.y}年</div>
+        <div class="hbar-track">
+          <div class="hbar-fill${d.isCurrent ? ' current' : ''}" style="width:${Math.max(d.mins/maxYearMin*100, 3)}%"></div>
+        </div>
+        <div class="hbar-value">${formatDuration(d.mins)}</div>
+      </div>`).join('');
+  }
+
+  // mood
+  const moodCount = {};
+  all.forEach(s => { if (s.mood) moodCount[s.mood] = (moodCount[s.mood]||0)+1; });
+  const moodDiv = document.getElementById('mood-distribution');
+  if (!Object.keys(moodCount).length) {
+    moodDiv.innerHTML = '<p style="color:var(--muted);font-size:14px;">まだデータがありません</p>';
+  } else {
+    const total = Object.values(moodCount).reduce((a,b) => a+b, 0);
+    moodDiv.innerHTML = Object.entries(moodCount).sort((a,b) => b[1]-a[1]).map(([mood,cnt]) => {
+      const pct = Math.round(cnt/total*100);
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="font-size:22px;width:28px;">${mood}</span>
+        <div style="flex:1;background:var(--primary-pale);border-radius:6px;height:10px;overflow:hidden;">
+          <div style="background:var(--primary);height:100%;width:${pct}%;border-radius:6px;"></div>
+        </div>
+        <span style="font-size:13px;color:var(--muted);min-width:48px;text-align:right;">${cnt}回 (${pct}%)</span>
+      </div>`;
+    }).join('');
+  }
+
+  // top tags
+  const tagCount = {};
+  all.forEach(s => (s.tags||[]).forEach(t => { tagCount[t] = (tagCount[t]||0)+1; }));
+  const topTags = document.getElementById('top-tags');
+  const sorted  = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0,15);
+  topTags.innerHTML = sorted.length
+    ? sorted.map(([tag,cnt]) => `<span class="session-tag">${escapeHtml(tag)} <strong style="opacity:0.6;">${cnt}</strong></span>`).join('')
+    : '<p style="color:var(--muted);font-size:14px;">まだデータがありません</p>';
+}
+
+// =====================
+// PDF
+// =====================
+document.getElementById('btn-pdf').addEventListener('click', () => {
+  const sessions = getFiltered();
+  if (!sessions.length) { showToast('出力する記録がありません'); return; }
+
+  const label = { all:'すべての記録', week:'今週の記録', month:'今月の記録' }[activeFilter];
+  const qLabel = searchQuery ? `「${searchQuery}」の検索結果` : label;
+
+  const html = sessions.map(s => {
+    const items = (s.items||[]).map(it => `
+      <div class="p-item">
+        ${it.time ? `<span class="p-time">${escapeHtml(it.time)}</span>` : ''}
+        <span class="p-item-text">${escapeHtml(it.text)}</span>
+      </div>`).join('');
+    const noteHtml = s.note ? `<div class="p-label">メモ・気づき</div><div class="p-note">${escapeHtml(s.note)}</div>` : '';
+    const tagsHtml = (s.tags||[]).length ? `<div class="p-tags">${s.tags.map(t=>`<span class="p-tag">${escapeHtml(t)}</span>`).join('')}</div>` : '';
+    return `<div class="p-session">
+      <div class="p-session-header">
+        <span class="p-date">${formatDate(s.date)}${relativeLabel(s.date) ? ' · '+relativeLabel(s.date) : ''}</span>
+        <span class="p-dur">${formatDuration(s.duration)}</span>
+      </div>
+      <div class="p-title">${escapeHtml(s.title)} ${s.mood||''}</div>
+      ${items ? `<div class="p-label">練習内容</div>${items}` : ''}
+      ${noteHtml}${tagsHtml}
+    </div>`;
+  }).join('');
+
+  document.getElementById('print-area').innerHTML = `
+    <div class="p-header">
+      <h1>🎹 ピアノ練習ログ</h1>
+      <p>${qLabel} ／ 出力日: ${formatDate(todayStr())} ／ ${sessions.length}件</p>
+    </div>
+    ${html}
+    <div class="p-footer">ピアノ練習ログ ／ 出力日時: ${new Date().toLocaleString('ja-JP')}</div>
+  `;
+  window.print();
+});
+
+// =====================
+// TABS
+// =====================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${name}`));
+  if (name === 'list')  renderList();
+  if (name === 'stats') renderStats();
+}
+
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+
+// =====================
+// QR CODE
+// =====================
+function generateQR(url) {
+  const container = document.getElementById('qr-canvas');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: url, width: 220, height: 220,
+    colorDark: '#111827', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+  document.getElementById('qr-url').textContent = url;
+}
+
+document.getElementById('btn-qr').addEventListener('click', () => {
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
+  const ipInput = document.getElementById('qr-ip-input');
+  const desc = document.getElementById('qr-desc');
+
+  if (isLocal) {
+    desc.innerHTML = '⚠️ <strong>localhost</strong> ではiPhoneから繋がりません。<br>ターミナルで <code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;">ipconfig getifaddr en0</code> を実行してMacのIPアドレスを入力してください。';
+    ipInput.value = '';
+    document.getElementById('qr-canvas').innerHTML = '';
+    document.getElementById('qr-url').textContent = '';
+  } else {
+    desc.textContent = '以下のURLでQRコードを生成しました。';
+    ipInput.value = host;
+    generateQR(location.href);
+  }
+
+  document.getElementById('qr-overlay').classList.add('open');
+});
+
+document.getElementById('qr-gen-btn').addEventListener('click', () => {
+  const ip = document.getElementById('qr-ip-input').value.trim();
+  if (!ip) { alert('IPアドレスを入力してください'); return; }
+  const url = `http://${ip}:${location.port || 80}${location.pathname}`;
+  document.getElementById('qr-desc').textContent = '以下のURLでQRコードを生成しました。';
+  generateQR(url);
+});
+
+document.getElementById('qr-ip-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('qr-gen-btn').click();
+});
+
+document.getElementById('btn-close-qr').addEventListener('click', () => document.getElementById('qr-overlay').classList.remove('open'));
+document.getElementById('qr-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('qr-overlay')) document.getElementById('qr-overlay').classList.remove('open');
+});
+
+// =====================
+// INIT
+// =====================
+document.getElementById('today-label').textContent = formatDate(todayStr());
+initForm(null);
+renderList();
+renderStats();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
