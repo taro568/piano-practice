@@ -261,6 +261,40 @@ textarea { resize: vertical; min-height: 70px; }
   </div>
 </div>
 
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <h3>記録を編集</h3>
+    <div class="form-row">
+      <label>練習日</label>
+      <input type="date" id="edit-date">
+    </div>
+    <div class="form-row">
+      <label>気分</label>
+      <div class="mood-selector" id="edit-mood-selector">
+        <button class="mood-btn" data-mood="great" onclick="selectEditMood('great')">😄<span>最高</span></button>
+        <button class="mood-btn" data-mood="good"  onclick="selectEditMood('good')">🙂<span>良い</span></button>
+        <button class="mood-btn" data-mood="normal" onclick="selectEditMood('normal')">😐<span>普通</span></button>
+        <button class="mood-btn" data-mood="tired" onclick="selectEditMood('tired')">😫<span>疲れた</span></button>
+        <button class="mood-btn" data-mood="fire"  onclick="selectEditMood('fire')">🔥<span>やる気</span></button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>練習内容</label>
+      <div id="edit-items-list"></div>
+      <button class="add-item-btn" onclick="addEditItem()">＋ 追加</button>
+    </div>
+    <div class="form-row">
+      <label>メモ</label>
+      <textarea id="edit-note" placeholder="メモ…"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn-primary" style="width:auto;margin-top:0" onclick="saveEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 削除確認モーダル -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal">
@@ -434,9 +468,11 @@ function renderList() {
       return divider + section + noteHTML;
     }).join('');
 
-    const deleteButtons = dayRecords.map(r =>
-      `<button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除${dayRecords.length>1?' #'+(dayRecords.indexOf(r)+1):''}</button>`
-    ).join('');
+    const actionButtons = dayRecords.map(r => {
+      const num = dayRecords.length > 1 ? ' #'+(dayRecords.indexOf(r)+1) : '';
+      return `<button class="btn-sm" onclick="openEditModal(${r.id})">編集${num}</button>`
+           + `<button class="btn-sm danger" onclick="openDeleteModal(${r.id})">削除${num}</button>`;
+    }).join('');
 
     return `
       <div class="record-card">
@@ -445,12 +481,91 @@ function renderList() {
           <span class="record-total">${dayTotal}分</span>
         </div>
         <div class="record-items">${itemsHTML}</div>
-        <div class="record-actions">${deleteButtons}</div>
+        <div class="record-actions">${actionButtons}</div>
       </div>
     `;
   }).join('');
 }
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// --- 編集 ---
+let editingId = null;
+let editItemCount = 0;
+
+function openEditModal(id) {
+  const record = loadRecords().find(r => r.id === id);
+  if (!record) return;
+  editingId = id;
+
+  document.getElementById('edit-date').value = record.date;
+  document.getElementById('edit-note').value = record.note || '';
+
+  // 気分
+  document.querySelectorAll('#edit-mood-selector .mood-btn').forEach(b => b.classList.remove('selected'));
+  if (record.mood) {
+    const btn = document.querySelector(`#edit-mood-selector [data-mood="${record.mood}"]`);
+    if (btn) btn.classList.add('selected');
+  }
+
+  // 練習項目
+  editItemCount = 0;
+  document.getElementById('edit-items-list').innerHTML = '';
+  (record.items || []).forEach(i => addEditItem(i.dur, i.text));
+  if (!record.items || record.items.length === 0) addEditItem();
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  editingId = null;
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+function selectEditMood(mood) {
+  document.querySelectorAll('#edit-mood-selector .mood-btn').forEach(b =>
+    b.classList.toggle('selected', b.dataset.mood === mood)
+  );
+}
+
+function addEditItem(dur='', text='') {
+  editItemCount++;
+  const id = 'edit-item-' + editItemCount;
+  const div = document.createElement('div');
+  div.className = 'item-row'; div.id = id;
+  div.innerHTML = `
+    <input type="number" class="edit-item-dur" placeholder="分" min="1" value="${dur}" style="width:64px">
+    <input type="text" class="edit-item-text" placeholder="練習内容" value="${escAttr(String(text))}">
+    <button class="del-btn" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById('edit-items-list').appendChild(div);
+}
+
+function saveEdit() {
+  if (!editingId) return;
+  const date = document.getElementById('edit-date').value;
+  if (!date) { alert('練習日を選んでください'); return; }
+
+  const items = [];
+  document.querySelectorAll('#edit-items-list .item-row').forEach(row => {
+    const dur = parseInt(row.querySelector('.edit-item-dur').value) || 0;
+    const text = row.querySelector('.edit-item-text').value.trim();
+    if (text || dur > 0) items.push({ dur, text });
+  });
+  if (items.length === 0) { alert('練習内容を1つ以上入力してください'); return; }
+
+  const note = document.getElementById('edit-note').value.trim();
+  const total = items.reduce((s,i) => s+i.dur, 0);
+  const moodSelected = document.querySelector('#edit-mood-selector .mood-btn.selected');
+  const mood = moodSelected ? moodSelected.dataset.mood : '';
+
+  const records = loadRecords().map(r =>
+    r.id === editingId ? { ...r, date, items, note, total, mood } : r
+  );
+  saveRecords(records);
+  closeEditModal();
+  renderList();
+  renderStats();
+}
+
 function openDeleteModal(id) { pendingDeleteId = id; document.getElementById('delete-modal').classList.add('open'); }
 function closeDeleteModal() { pendingDeleteId = null; document.getElementById('delete-modal').classList.remove('open'); }
 function confirmDelete() {
